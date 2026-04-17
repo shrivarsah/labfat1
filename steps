@@ -1,0 +1,386 @@
+Got it — I’ll give you a **complete end-to-end implementation guide** for this *Password Reset System project* including **folder setup, code, tools, commands, CI/CD, Docker, Kubernetes** — everything step-by-step.
+
+---
+
+# 🔥 0. Tech Stack You Will Use
+
+* **Language:** Java (Spring Boot)
+* **Build Tool:** Maven
+* **Testing:** JUnit
+* **Version Control:** Git + GitHub
+* **CI/CD:** GitHub Actions (easier than Jenkins)
+* **Containerization:** Docker
+* **Orchestration:** Kubernetes (Minikube for local)
+
+---
+
+# 📁 1. Create Project Folder
+
+```bash
+mkdir password-reset-system
+cd password-reset-system
+```
+
+---
+
+# 🧱 2. Create Spring Boot Project
+
+Go to 👉 [https://start.spring.io](https://start.spring.io)
+
+Select:
+
+* Project: Maven
+* Language: Java
+* Dependencies:
+
+  * Spring Web
+  * Spring Security
+  * Spring Data JPA
+  * H2 Database (for testing)
+  * Lombok
+
+Download and extract into your folder.
+
+---
+
+# 📂 3. Project Structure
+
+```
+password-reset-system/
+ ├── src/
+ │   ├── main/
+ │   │   ├── java/com/example/reset/
+ │   │   │   ├── controller/
+ │   │   │   ├── service/
+ │   │   │   ├── model/
+ │   │   │   ├── repository/
+ │   │   ├── resources/
+ │   │       ├── application.properties
+ ├── src/test/java/
+ ├── pom.xml
+```
+
+---
+
+# ⚙️ 4. Configure Database
+
+`application.properties`
+
+```properties
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.jpa.hibernate.ddl-auto=update
+spring.h2.console.enabled=true
+```
+
+---
+
+# 🧑‍💻 5. Create Model
+
+### User.java
+
+```java
+@Entity
+@Data
+public class User {
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    private String email;
+    private String password;
+    private String otp;
+}
+```
+
+---
+
+# 🗄️ 6. Repository
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+}
+```
+
+---
+
+# ⚙️ 7. Service (OTP + Reset Logic)
+
+```java
+@Service
+public class UserService {
+
+    @Autowired
+    private UserRepository repo;
+
+    public String generateOTP(String email) {
+        User user = repo.findByEmail(email).orElseThrow();
+        String otp = String.valueOf(new Random().nextInt(999999));
+        user.setOtp(otp);
+        repo.save(user);
+        return otp;
+    }
+
+    public String resetPassword(String email, String otp, String newPassword) {
+        User user = repo.findByEmail(email).orElseThrow();
+
+        if (!user.getOtp().equals(otp)) {
+            return "Invalid OTP";
+        }
+
+        user.setPassword(newPassword);
+        repo.save(user);
+        return "Password Updated";
+    }
+}
+```
+
+---
+
+# 🌐 8. Controller
+
+```java
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private UserService service;
+
+    @PostMapping("/generate-otp")
+    public String generateOtp(@RequestParam String email) {
+        return service.generateOTP(email);
+    }
+
+    @PostMapping("/reset-password")
+    public String resetPassword(@RequestParam String email,
+                                @RequestParam String otp,
+                                @RequestParam String newPassword) {
+        return service.resetPassword(email, otp, newPassword);
+    }
+}
+```
+
+---
+
+# 🧪 9. JUnit Testing
+
+```java
+@SpringBootTest
+public class UserServiceTest {
+
+    @Autowired
+    private UserService service;
+
+    @Test
+    void invalidOtpTest() {
+        String result = service.resetPassword("test@mail.com", "123", "newpass");
+        assertEquals("Invalid OTP", result);
+    }
+}
+```
+
+---
+
+# 🔧 10. Build Project (Maven)
+
+```bash
+mvn clean install
+```
+
+Run app:
+
+```bash
+mvn spring-boot:run
+```
+
+---
+
+# 🧾 11. Initialize Git
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+```
+
+---
+
+# 🌍 12. Push to GitHub
+
+1. Create repo in GitHub
+2. Run:
+
+```bash
+git remote add origin https://github.com/your-username/password-reset-system.git
+git branch -M main
+git push -u origin main
+```
+
+---
+
+# ⚙️ 13. CI/CD using GitHub Actions
+
+Create file:
+
+```
+.github/workflows/ci.yml
+```
+
+```yaml
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+
+    - name: Build with Maven
+      run: mvn clean install
+```
+
+---
+
+# 🐳 14. Docker Setup
+
+### Create Dockerfile
+
+```dockerfile
+FROM openjdk:17
+COPY target/password-reset-system.jar app.jar
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+
+---
+
+### Build Image
+
+```bash
+docker build -t yourusername/password-reset .
+```
+
+---
+
+### Run Container
+
+```bash
+docker run -p 8080:8080 yourusername/password-reset
+```
+
+---
+
+# ☁️ 15. Push to Docker Hub
+
+```bash
+docker login
+docker push yourusername/password-reset
+```
+
+---
+
+# ☸️ 16. Kubernetes Setup
+
+Start Minikube:
+
+```bash
+minikube start
+```
+
+---
+
+### deployment.yaml
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: password-reset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reset
+  template:
+    metadata:
+      labels:
+        app: reset
+    spec:
+      containers:
+      - name: reset
+        image: yourusername/password-reset
+        ports:
+        - containerPort: 8080
+```
+
+---
+
+### service.yaml
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: reset-service
+spec:
+  type: NodePort
+  selector:
+    app: reset
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30007
+```
+
+---
+
+### Apply YAML
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+```
+
+---
+
+### Access App
+
+```bash
+minikube service reset-service
+```
+
+---
+
+# ✅ Final Checklist (VERY IMPORTANT FOR MARKS)
+
+✔ Java app working
+✔ OTP logic implemented
+✔ JUnit test written
+✔ GitHub repo created
+✔ CI pipeline running
+✔ Docker image created & pushed
+✔ Kubernetes deployed
+
+---
+
+# 🎯 If You Want Next
+
+I can help you with:
+
+* Full **ready-made GitHub repo code**
+* **Jenkins pipeline instead of GitHub Actions**
+* **Viva questions + answers**
+* **PPT content for this project**
+
+Just tell 👍
